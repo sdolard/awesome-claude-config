@@ -16,6 +16,11 @@
 # cross-vendor review tool), and a parallel-instances/peers counter (a small
 # multi-instance coordination lib, not included here).
 #
+# One more block is a side-effect, not a display segment, and is NOT a no-op:
+# it unconditionally creates `tmp/` and writes `tmp/.claude-burnrate.json` on
+# every render (see "OPTIONAL side-effect" below) — harmless, but delete that
+# block if nothing in your own config consumes the file.
+#
 # Statusline Claude Code — aesthetic geek edition.
 # Format: project · ⎇ branch · ◈ model [· ⚙ effort] · █████▌░░░░ NN% ctx · ⏱ Xm · $X.XX · +A/-R · ⧖ 5h █▌░░░░░░░░ NN% ↻Xh · [style]
 # Responsive: segments wrap onto several lines if the terminal width is not enough.
@@ -180,27 +185,27 @@ fi
 # No-ops (empty segment) if the marker file doesn't exist. Adapt the path/hook
 # names to your own equivalent, or delete this block entirely. Statusline-side
 # TTL of 30 min is the last GC line of defense.
-agy_marker="$project_dir/tmp/.external-tool-active.json"
-agy_tool=""; agy_elapsed=0
-if [ -f "$agy_marker" ]; then
-  agy_started=$(jq -r '.started_at // 0' "$agy_marker" 2>/dev/null || echo 0)
-  if [ "$agy_started" -gt 0 ]; then
-    agy_elapsed=$(( now - agy_started ))
-    if [ "$agy_elapsed" -gt 1800 ]; then
-      rm -f "$agy_marker" 2>/dev/null || true
-      agy_elapsed=0
+ext_marker="$project_dir/tmp/.external-tool-active.json"
+ext_tool=""; ext_elapsed=0
+if [ -f "$ext_marker" ]; then
+  ext_started=$(jq -r '.started_at // 0' "$ext_marker" 2>/dev/null || echo 0)
+  if [ "$ext_started" -gt 0 ]; then
+    ext_elapsed=$(( now - ext_started ))
+    if [ "$ext_elapsed" -gt 1800 ]; then
+      rm -f "$ext_marker" 2>/dev/null || true
+      ext_elapsed=0
     else
-      agy_tool=$(jq -r '.tool // empty' "$agy_marker" 2>/dev/null)
+      ext_tool=$(jq -r '.tool // empty' "$ext_marker" 2>/dev/null)
     fi
   fi
 fi
 
 # OPTIONAL — cumulative token counter for that same external tool (per Claude
 # session_id, auto-reset by whichever hook you write it from).
-agy_tok_file="$project_dir/tmp/.external-tool-tokens.json"
-agy_tokens=0
-if [ -f "$agy_tok_file" ]; then
-  agy_tokens=$(jq -r '.total // 0' "$agy_tok_file" 2>/dev/null || echo 0)
+ext_tok_file="$project_dir/tmp/.external-tool-tokens.json"
+ext_tokens=0
+if [ -f "$ext_tok_file" ]; then
+  ext_tokens=$(jq -r '.total // 0' "$ext_tok_file" 2>/dev/null || echo 0)
 fi
 
 # Auth identity for the current session — which account is logged in.
@@ -276,7 +281,7 @@ if [ -n "$burnrate_data" ]; then
   fi
 fi
 
-echo "$input" | jq -r --arg b "$branch" --arg project "$project" --arg wt "$wt_name" --arg prUrl "$pr_url" --arg prNum "$pr_num" --arg effort "$effort" --arg auth "$auth_label" --arg agyTool "$agy_tool" --argjson agyElapsed "$agy_elapsed" --argjson agyTokens "$agy_tokens" --argjson now "$now" --argjson ahead "$ahead" --argjson behind "$behind" --argjson upstream "$upstream" --argjson width "$width" --argjson peers "$peers" '
+echo "$input" | jq -r --arg b "$branch" --arg project "$project" --arg wt "$wt_name" --arg prUrl "$pr_url" --arg prNum "$pr_num" --arg effort "$effort" --arg auth "$auth_label" --arg extTool "$ext_tool" --argjson extElapsed "$ext_elapsed" --argjson extTokens "$ext_tokens" --argjson now "$now" --argjson ahead "$ahead" --argjson behind "$behind" --argjson upstream "$upstream" --argjson width "$width" --argjson peers "$peers" '
   def color(code; text): "\u001b[\(code)m\(text)\u001b[0m";
   def dim(text): color("2"; text);
   def bold(text): color("1"; text);
@@ -365,12 +370,12 @@ echo "$input" | jq -r --arg b "$branch" --arg project "$project" --arg wt "$wt_n
    else "" end) as $prDisplay |
   (if $wt != "" then magenta("⧉ " + $wt) else "" end) as $wtDisplay |
   (if $peers > 0 then color("38;5;108"; "⇉ \($peers) peer" + (if $peers > 1 then "s" else "" end)) else "" end) as $peersDisplay |
-  (if $agyTool != "" then
-     color("38;5;213"; "✦ " + $agyTool + " " + fmtDuration($agyElapsed))
-   else "" end) as $agyActiveDisplay |
-  (if $agyTokens > 0 then
-     color("38;5;111"; "▤ " + fmtTokens($agyTokens) + " ext")
-   else "" end) as $agyTokensDisplay |
+  (if $extTool != "" then
+     color("38;5;213"; "✦ " + $extTool + " " + fmtDuration($extElapsed))
+   else "" end) as $extActiveDisplay |
+  (if $extTokens > 0 then
+     color("38;5;111"; "▤ " + fmtTokens($extTokens) + " ext")
+   else "" end) as $extTokensDisplay |
   (if $effort == "" or $effort == "default" then ""
    elif $effort == "max" then red(bold("⚙ " + $effort))
    elif $effort == "xhigh" then red("⚙ " + $effort)
@@ -391,8 +396,8 @@ echo "$input" | jq -r --arg b "$branch" --arg project "$project" --arg wt "$wt_n
   ] + (if $wtDisplay != "" then [$wtDisplay] else [] end)
     + (if $prDisplay != "" then [$prDisplay] else [] end)
     + (if $peersDisplay != "" then [$peersDisplay] else [] end)
-    + (if $agyActiveDisplay != "" then [$agyActiveDisplay] else [] end)
-    + (if $agyTokensDisplay != "" then [$agyTokensDisplay] else [] end) + [
+    + (if $extActiveDisplay != "" then [$extActiveDisplay] else [] end)
+    + (if $extTokensDisplay != "" then [$extTokensDisplay] else [] end) + [
     color($mStyle.col; $mStyle.icon) + " " + bold($mname)
   ] + (if $authDisplay != "" then [$authDisplay] else [] end)
     + (if $effortDisplay != "" then [$effortDisplay] else [] end) + [
