@@ -347,3 +347,9 @@ pain points, and re-tool each item into whichever Claude Code mechanism
 | File | What it covers |
 | --- | --- |
 | [`second-opinion.md`](agents/second-opinion.md) | Read-only subagent persona for the cross-tier second-opinion mechanism above — critiques, never rewrites. |
+
+### `statusline/`
+
+| File | What it covers |
+| --- | --- |
+| [`statusline.sh`](statusline/statusline.sh) | Session telemetry status line (branch/worktree/PR, model, effort, context %, cost, 5h burn-rate) with responsive wrapping and a 256-color heat palette. Three segments are optional/companion-file-dependent and no-op gracefully if you don't build the mechanism they read. |
