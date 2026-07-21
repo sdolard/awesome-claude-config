@@ -297,3 +297,53 @@ names) were intentionally left out — replace the concrete mechanisms (ESLint
 rule, contract test, CLI-based component generation) with whatever your own
 stack's equivalent is; the *shape* of each guideline is what's meant to
 transfer.
+
+---
+
+## Beyond UI: the rest of the config
+
+This file covers the frontend/UI slice specifically. The rest of the
+methodology extracted from the same production codebase — process and
+engineering-discipline guidelines that aren't tied to any UI stack — lives
+in a `.claude/`-shaped tree below, ready to drop into another project's own
+`.claude/rules/`, `.claude/skills/`, `.claude/agents/`. The same integration
+note above applies: read, decide what genuinely fits your repo's current
+pain points, and re-tool each item into whichever Claude Code mechanism
+(Rule / Hook / Skill / Agent) actually matches the kind of constraint it is.
+
+### `rules/`
+
+| File | What it covers |
+| --- | --- |
+| [`git-workflow.md`](rules/git-workflow.md) | Conventional Commits, atomic commits, squash-merge rationale, a commit-linter apostrophe gotcha, a narrow standing push/PR autonomy pattern. |
+| [`code-quality.md`](rules/code-quality.md) | TypeScript strictness baseline, `satisfies` over `as`, exhaustive-switch on discriminated unions, branded ID types, a JSON `undefined`-stripping gotcha, a module-isolation gotcha, "fix all errors during check, not just yours." |
+| [`test-strategy.md`](rules/test-strategy.md) | When to write a test relative to the code — test-first is conditional (Beck), not universal; a decision grid by code nature. |
+| [`test-generation.md`](rules/test-generation.md) | Contract-first guardrail for LLM-generated tests: a 5-step workflow, forbidden written-to-pass patterns. |
+| [`development.md`](rules/development.md) | Diagnostic discipline (measure before optimizing, pivot on contradiction) + the written-to-pass test anti-pattern catalogue. |
+| [`mutation-testing.md`](rules/mutation-testing.md) | Coverage anti-patterns (Marick 1999), mutation score vs. line coverage, contract-first PR-review questions for tests. |
+| [`measurement-cost.md`](rules/measurement-cost.md) | Dosing expensive LLM/CI validations — cheap-mode iteration vs. one expensive final measure, targeted CI re-runs, cache-hit pitfalls. |
+| [`analysis-and-audit.md`](rules/analysis-and-audit.md) | Methodology for any audit/transverse review: mandatory diagrams, canonical verdicts, debt-acceptance-is-the-user's-call, limits of static analysis, ROI precondition. |
+| [`session-focus.md`](rules/session-focus.md) | Scope-guardian discipline against session drift; cosmetic-vs-structural follow-up triage (Cunningham, Fowler). |
+| [`architecture-review.md`](rules/architecture-review.md) | Cross-tier second-opinion mechanism (a different model tier reviews a plan/decision before it's final). Companion: [`agents/second-opinion.md`](agents/second-opinion.md). |
+| [`promoted-diagrams.md`](rules/promoted-diagrams.md) | Ownership and update-obligation discipline for diagrams promoted into permanent documentation. |
+| [`llm-configuration.md`](rules/llm-configuration.md) | Honor a model vendor's tuned defaults instead of overriding generation parameters without measurement. |
+| [`prompt-engineering.md`](rules/prompt-engineering.md) | Prompt-engineering structure, techniques, and anti-patterns (contrastive framing, over-constraining). |
+
+### `skills/`
+
+| Folder | What it covers |
+| --- | --- |
+| [`review-local/`](skills/review-local/SKILL.md) | Multi-agent local code review: perspective-based fan-out, evidence-grounded anti-hallucination, risk-gated adversarial jury, an LLM-failure-mode compensation table. |
+| [`functional-review/`](skills/functional-review/SKILL.md) | 8 lenses for reviewing business logic specifically ("is this the *right* logic"): Fagan, Decision Table, Boundary Value, and more. |
+| [`start-ticket/`](skills/start-ticket/SKILL.md) | Disciplined ticket kickoff: Definition-of-Ready gates, duplicate detection, branch-vs-worktree decision, a BLUF briefing before planning. |
+| [`github-issues/`](skills/github-issues/SKILL.md) | Epic/sub-issue methodology on a GitHub Projects-style board, including an epic-vs-milestone orphan-ticket check. |
+| [`claude-audit-config/`](skills/claude-audit-config/SKILL.md) | Audits your own `.claude/` config against current Claude Code capabilities — settings, hooks, agents, rules, skills. |
+| [`claude-sync/`](skills/claude-sync/SKILL.md) | Diffs your project's config against the Claude Code CHANGELOG since the last version you processed, produces a plan (never auto-applies). |
+| [`meeting-summary/`](skills/meeting-summary/SKILL.md) | Turns a call/meeting transcript into an actionable summary (BLUF, Pyramid Principle, SMART, DACI, faithfulness-checked). |
+| [`sync-docs/`](skills/sync-docs/SKILL.md) | Git-ref-driven documentation sync: finds what moved, writes a plan, waits for validation before applying. |
+
+### `agents/`
+
+| File | What it covers |
+| --- | --- |
+| [`second-opinion.md`](agents/second-opinion.md) | Read-only subagent persona for the cross-tier second-opinion mechanism above — critiques, never rewrites. |
