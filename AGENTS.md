@@ -49,7 +49,7 @@ project**. Do that in four steps:
   difference. Report the needed change instead.
 - Files without that comment predate the generation pipeline and are still
   written for Claude Code only. They are being regenerated one by one.
-- Before proposing a change, run `node --test scripts/` and
+- Before proposing a change, run `node --test scripts/*.test.mjs` and
   `node scripts/check.mjs`. The check refuses machine paths, tracker
   identifiers, personal addresses and four-digit issue numbers anywhere in the
   repository.
