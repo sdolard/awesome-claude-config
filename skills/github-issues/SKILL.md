@@ -1,100 +1,91 @@
 ---
 name: github-issues
 description:
-  "Issue management with automatic project attachment and epic/sub-issue
-  linking. Keywords: issue, epic, sub-issue, ticket, backlog, project board,
-  gh issue create. Apply when creating tracked issues or organizing epics."
+  "GitHub issue management with project-board attachment and epic/sub-issue
+  linking. Keywords: issue, epic, sub-issue, ticket, backlog, project, gh issue
+  create. Apply when creating GitHub issues or managing epics."
 ---
+
+<!-- GENERATED FILE: do not edit by hand. Regenerated from a reference configuration; see PROVENANCE.json. -->
 
 # Skill: GitHub Issues
 
-> Extracted from a production codebase — adapt tool names/IDs to your own
-> stack. Examples below use the GitHub CLI (`gh`) and GitHub Projects v2
-> GraphQL mutations; swap them for your own tracker's equivalent (Linear,
-> Jira, GitLab) and the *shape* of each rule still applies — a project board
-> attachment step, a parent/child linking mechanism, a status field.
+GitHub issue management with automatic attachment to a GitHub Projects board
+and epic/sub-issue linking, so tracked work never ends up orphaned or
+invisible in the board's structure.
 
-Issue management with automatic attachment to a project board and
-epic/sub-issue linking, so tracked work never ends up orphaned or invisible
-in the board's structure.
+The examples use the GitHub CLI (`gh`) and the Projects v2 GraphQL API. On
+another tracker the commands change and the _shape_ of each rule still
+applies: a board attachment step, a native parent/child link, a status field.
 
-## When to create an issue (before starting work)
+## Running this skill
 
-Create an issue **first**, before writing any code, when the work meets any
-of these criteria:
+- Run the documented `gh` commands through the agent's terminal tool.
+- Do not infer authorization for a GitHub mutation: the user's request must
+  place the issue, project, comment, or status change in scope.
+- The skill has no engine-specific dependency. How each engine discovers and
+  invokes it is described in the `engines/` notes of this repository.
 
-- Multi-step implementation (more than roughly 30 minutes of work, or
-  spanning multiple commits).
-- Cross-cutting change (touches multiple packages, configs, or
-  architectural layers).
-- Non-trivial diagnostic work (a bench, a debugging session, an
-  investigation likely to pivot).
-- Anything that might later need rollback, re-evaluation, or re-explaining
-  to someone who wasn't there.
+## When to create an issue (BEFORE starting work)
 
-**Why**: the issue is the single place where context, diagnosis, decisions,
-and measurements accumulate over the life of the work. Without it, the
-reasoning gets scattered across commit messages and conversation history
-that nobody will reconstruct later — including the person (or agent) who did
-the work, two weeks on.
+Create an issue FIRST if the work meets any of these criteria:
 
-**Workflow while the work is in progress**:
+- Multi-step implementation (more than ~30 min of work or multiple commits)
+- Cross-cutting changes (touches multiple packages, configs, or layers)
+- Non-trivial diagnostic work (bench, debug, investigation with pivots)
+- Anything that might need rollback, re-evaluation, or re-explanation later
 
-1. Create the issue first; post the initial diagnosis and plan as the body.
-2. Post a progress comment at each significant pivot (new data, changed
-   approach) — not a comment per commit, a comment per decision point.
-3. Close with a summary comment: results, the commits/PRs involved, and any
-   remaining follow-up work.
+**Why**: an issue is the single place where context, diagnosis, decisions, and
+measurements are consolidated. Without it, the "why" gets lost in commit
+messages or conversation history.
 
-A real example of the failure mode this prevents: a multi-day performance
-investigation that pivoted approach three times (a first fix that didn't
-hold, a second hypothesis that turned out to be about I/O rather than
-render cost, and a final structural fix). Without a tracked issue, that
-sequence of reasoning would have been lost the moment the terminal session
-ended. With one, anyone can reconstruct exactly why the first two attempts
-were abandoned.
+**Workflow during the work**:
 
-## Project configuration
+1. Create issue first, post diagnosis and plan as the initial body
+2. Post progress comments at each significant pivot (new data, approach change)
+3. Close with a summary comment: results, commits, any remaining work
 
-Resolve these once per repo/board and keep them somewhere durable (this
-skill file, a `CLAUDE.md`-equivalent config doc) rather than re-discovering
-them every time:
+**The failure mode this prevents**: a performance investigation that pivots
+three times (a first diagnosis that does not hold, a second pointing at a
+different layer, a final structural fix). Without tickets, that reasoning is
+lost when the session ends. With them, anyone — including yourself in two
+weeks — can reconstruct why the first two attempts were abandoned.
 
-```
-PROJECT_ID:        <YOUR_PROJECT_ID>            # gh project list --owner <org> --format json
-PROJECT_NUMBER:    <YOUR_PROJECT_NUMBER>
-REPO:              <owner>/<repo>
-STATUS_FIELD_ID:   <YOUR_STATUS_FIELD_ID>        # gh project field-list <PROJECT_NUMBER> --owner <org>
-STATUS_OPTIONS:
-  Todo         = <option-id>
-  Blocked      = <option-id>
-  In Progress  = <option-id>
-  Done         = <option-id>
-  Won't Fix    = <option-id>
+## Project Configuration
+
+Resolve these once per repository and keep them in the project's own copy of
+this skill. They are per-project values: never reuse another project's.
+
+```bash
+OWNER="<owner>"                     # user or organization login
+REPO="<repo>"
+PROJECT_NUMBER="<project number>"   # gh project list --owner "$OWNER"
+PROJECT_ID="<project node id>"      # gh project list --owner "$OWNER" --format json
+STATUS_FIELD_ID="<field node id>"   # gh project field-list "$PROJECT_NUMBER" --owner "$OWNER" --format json
+# The same field-list output gives one option id per status column:
+STATUS_TODO="<option id>"
+STATUS_BLOCKED="<option id>"
+STATUS_IN_PROGRESS="<option id>"
+STATUS_DONE="<option id>"
 ```
 
-To fill these in: `gh project list --owner <org>` gets you the project
-number and node ID; `gh project field-list <number> --owner <org>` gets you
-the status field's ID and its option IDs. These are org/board-specific — do
-not copy the values from any example verbatim.
+## Status discipline (MANDATORY)
 
-## Status discipline
+When the user asks to **handle / start / resume** a ticket (by number or URL),
+BEFORE anything else:
 
-When told to handle/start/resume a specific ticket, **before** anything
-else:
-
-1. Move its status to **In Progress** on the project board (mutation below).
-2. Briefly confirm the move to the user.
+1. Move the ticket status to **In Progress** on the project (mutation below).
+2. Briefly confirm to the user ("Ticket moved to In Progress").
 3. Then start the work.
 
-When the work is done and merged: move it to **Done**. If blocked: move it
-to **Blocked**, with an explanatory comment on the issue recording why.
+When the work is done and merged: move to **Done**. If blocked: move to
+**Blocked** with an explanatory comment on the issue.
 
 ### Mutation: move a ticket to a given status
 
 ```bash
-ISSUE_NUMBER=123
-STATUS_OPTION_ID=<in-progress-option-id>  # see STATUS_OPTIONS above
+ISSUE_NUMBER="<issue number>"
+STATUS_OPTION_ID="$STATUS_IN_PROGRESS"
 
 # 1. Get the ProjectV2Item ID matching the issue
 ITEM_ID=$(gh api graphql -f query='
@@ -107,8 +98,8 @@ ITEM_ID=$(gh api graphql -f query='
       }
     }
   }
-' -f owner="<owner>" -f repo="<repo>" -F number="$ISSUE_NUMBER" \
-  --jq '.data.repository.issue.projectItems.nodes[] | select(.project.id == "<YOUR_PROJECT_ID>") | .id')
+' -f owner="$OWNER" -f repo="$REPO" -F number="$ISSUE_NUMBER" \
+  --jq ".data.repository.issue.projectItems.nodes[] | select(.project.id == \"$PROJECT_ID\") | .id")
 
 # 2. Update the Status field
 gh api graphql -f query='
@@ -120,83 +111,79 @@ gh api graphql -f query='
       value: { singleSelectOptionId: $optionId }
     }) { projectV2Item { id } }
   }
-' -f projectId="<YOUR_PROJECT_ID>" \
+' -f projectId="$PROJECT_ID" \
   -f itemId="$ITEM_ID" \
-  -f fieldId="<YOUR_STATUS_FIELD_ID>" \
+  -f fieldId="$STATUS_FIELD_ID" \
   -f optionId="$STATUS_OPTION_ID"
 ```
 
-If `ITEM_ID` comes back empty, the issue isn't attached to the board yet —
-add it first (see below), then re-run the status mutation.
+If `ITEM_ID` is empty: the issue is not in the project yet. Add it first with
+`addProjectV2ItemById` (see "Create an issue" below), then re-run the status
+mutation.
 
-## Mandatory workflow
+## Mandatory Workflow
 
-### 1. Create an issue and attach it to the board
+### 1. Create an issue and attach it to the project
 
 ```bash
-ISSUE_URL=$(gh issue create --title "Title" --body "Description" --repo "<owner>/<repo>")
+# Create the issue
+ISSUE_URL=$(gh issue create --title "Title" --body "Description" --repo "$OWNER/$REPO")
 ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
 
+# Get the issue's GraphQL ID
 ISSUE_ID=$(gh api graphql -f query='
   query($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name: $repo) {
       issue(number: $number) { id }
     }
   }
-' -f owner="<owner>" -f repo="<repo>" -F number="$ISSUE_NUMBER" --jq '.data.repository.issue.id')
+' -f owner="$OWNER" -f repo="$REPO" -F number="$ISSUE_NUMBER" --jq '.data.repository.issue.id')
 
+# Add to the project
 gh api graphql -f query='
   mutation($projectId: ID!, $contentId: ID!) {
     addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
       item { id }
     }
   }
-' -f projectId="<YOUR_PROJECT_ID>" -f contentId="$ISSUE_ID"
+' -f projectId="$PROJECT_ID" -f contentId="$ISSUE_ID"
 ```
 
 ### 2. Create an epic with sub-issues
 
 ```bash
-EPIC_URL=$(gh issue create --title "[Epic] Epic title" --body "Description" --label epic --repo "<owner>/<repo>")
-EPIC_NUMBER=$(echo "$EPIC_URL" | grep -oE '[0-9]+$')
-
-EPIC_ID=$(gh api graphql -f query='
-  query($owner: String!, $repo: String!, $number: Int!) {
-    repository(owner: $owner, name: $repo) {
-      issue(number: $number) { id }
-    }
-  }
-' -f owner="<owner>" -f repo="<repo>" -F number="$EPIC_NUMBER" --jq '.data.repository.issue.id')
-
-gh api graphql -f query='
-  mutation($projectId: ID!, $contentId: ID!) {
-    addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
-      item { id }
-    }
-  }
-' -f projectId="<YOUR_PROJECT_ID>" -f contentId="$EPIC_ID"
-
-for TITLE in "Sub-task 1" "Sub-task 2"; do
-  SUB_URL=$(gh issue create --title "$TITLE" --body "Part of epic #$EPIC_NUMBER" --repo "<owner>/<repo>")
-  SUB_NUMBER=$(echo "$SUB_URL" | grep -oE '[0-9]+$')
-
-  SUB_ID=$(gh api graphql -f query='
+issue_id() {
+  gh api graphql -f query='
     query($owner: String!, $repo: String!, $number: Int!) {
       repository(owner: $owner, name: $repo) {
         issue(number: $number) { id }
       }
     }
-  ' -f owner="<owner>" -f repo="<repo>" -F number="$SUB_NUMBER" --jq '.data.repository.issue.id')
+  ' -f owner="$OWNER" -f repo="$REPO" -F number="$1" --jq '.data.repository.issue.id'
+}
 
+add_to_project() {
   gh api graphql -f query='
     mutation($projectId: ID!, $contentId: ID!) {
       addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
         item { id }
       }
     }
-  ' -f projectId="<YOUR_PROJECT_ID>" -f contentId="$SUB_ID"
+  ' -f projectId="$PROJECT_ID" -f contentId="$1"
+}
 
-  # Link as a sub-issue of the epic — GraphQL, never a tasklist checkbox
+# 1. Create the epic (parent issue) and add it to the project
+EPIC_URL=$(gh issue create --title "[Epic] Epic title" --body "Description" --label epic --repo "$OWNER/$REPO")
+EPIC_NUMBER=$(echo "$EPIC_URL" | grep -oE '[0-9]+$')
+EPIC_ID=$(issue_id "$EPIC_NUMBER")
+add_to_project "$EPIC_ID"
+
+# 2. Create sub-issues, add them to the project, link them to the epic
+for TITLE in "Sub-task 1" "Sub-task 2"; do
+  SUB_URL=$(gh issue create --title "$TITLE" --body "Part of epic #$EPIC_NUMBER" --repo "$OWNER/$REPO")
+  SUB_ID=$(issue_id "$(echo "$SUB_URL" | grep -oE '[0-9]+$')")
+  add_to_project "$SUB_ID"
+
   gh api graphql -f query='
     mutation($issueId: ID!, $subIssueId: ID!) {
       addSubIssue(input: {issueId: $issueId, subIssueId: $subIssueId}) {
@@ -208,30 +195,12 @@ for TITLE in "Sub-task 1" "Sub-task 2"; do
 done
 ```
 
-**Why `addSubIssue` and not a tasklist checkbox in the epic's markdown body**:
-a native parent/child link is queryable (`subIssues`/`parent` fields),
-survives independently of anyone remembering to edit the epic's body text,
-and is what the "epic → milestone fallback" navigation rule below actually
-relies on. A markdown checklist is just text — nothing enforces it stays in
-sync with reality.
-
-### 3. Link an already-existing issue as a sub-issue
+### 3. Link an existing issue as sub-issue
 
 ```bash
-PARENT_NUMBER=123
-CHILD_NUMBER=456
-
-PARENT_ID=$(gh api graphql -f query='
-  query($owner: String!, $repo: String!, $number: Int!) {
-    repository(owner: $owner, name: $repo) { issue(number: $number) { id } }
-  }
-' -f owner="<owner>" -f repo="<repo>" -F number="$PARENT_NUMBER" --jq '.data.repository.issue.id')
-
-CHILD_ID=$(gh api graphql -f query='
-  query($owner: String!, $repo: String!, $number: Int!) {
-    repository(owner: $owner, name: $repo) { issue(number: $number) { id } }
-  }
-' -f owner="<owner>" -f repo="<repo>" -F number="$CHILD_NUMBER" --jq '.data.repository.issue.id')
+# issue_id is the helper defined in the previous section
+PARENT_ID=$(issue_id "<parent number>")
+CHILD_ID=$(issue_id "<child number>")
 
 gh api graphql -f query='
   mutation($issueId: ID!, $subIssueId: ID!) {
@@ -243,98 +212,155 @@ gh api graphql -f query='
 ' -f issueId="$PARENT_ID" -f subIssueId="$CHILD_ID"
 ```
 
-## No orphan ticket
+## Useful Queries
 
-A ticket without a parent epic is a ticket nobody will find later when
-browsing by theme. Apply this systematically before creating an issue:
+Both queries read a single page (`first:`). On a parent with more children, or
+a project with more items, than the page size, request `pageInfo { hasNextPage
+endCursor }` and follow the cursor — a truncated page reads as "nothing left".
 
-1. Look for an existing epic on the theme
-   (`gh issue list --label epic --state open --repo "<owner>/<repo>"`).
-2. Found one → create the sub-issue and link it via `addSubIssue`.
-3. None found → create the parent epic first (label `epic`, a clear theme),
-   then the sub-issue under it.
-4. The only acceptable exception is an explicit standalone-ticket request
-   from the user. Absent that, don't create an orphan — propose the
-   appropriate parent epic instead.
+### List sub-issues of an issue
 
-**Why**: an epic is the backlog's thematic grouping mechanism. A ticket
-without a parent is invisible in that structure — findable only by luck or
-full-text search, not by browsing the theme it belongs to.
+```bash
+gh api graphql -f query='
+  query($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner, name: $repo) {
+      issue(number: $number) {
+        subIssues(first: 50) {
+          nodes { number title state }
+        }
+      }
+    }
+  }
+' -f owner="$OWNER" -f repo="$REPO" -F number="<issue number>"
+```
 
-## Epic → milestone fallback (backlog navigation)
+### Check if an issue is in the project
 
-An epic showing **no open sub-issue** is not proof its theme is exhausted.
-Sub-issue links and milestone membership can diverge in practice: a ticket
-can belong to the epic's milestone without ever being linked as a sub-issue,
-especially if someone edited the epic's markdown body by hand instead of
-using `addSubIssue` — and that body text is never the source of truth, the
-native sub-issue link is.
+For a project owned by an organization, replace `user(login:` with
+`organization(login:`.
 
-Before concluding an epic has nothing left, check whether it carries a
-milestone. If it does, list the milestone's **open** issues and
-cross-reference them against the epic's linked sub-issues. Any ticket that's
-in the milestone but not linked as a sub-issue is work the sub-issue view
-alone would hide — surface it explicitly rather than declaring the epic
-exhausted. When the two views already match (no orphan), that agreement is
-itself worth stating — it's the evidence the tracking stayed consistent, not
-noise to omit.
+```bash
+gh api graphql -f query='
+  query($projectNumber: Int!, $owner: String!) {
+    user(login: $owner) {
+      projectV2(number: $projectNumber) {
+        items(first: 100) {
+          nodes {
+            content {
+              ... on Issue { number title }
+            }
+          }
+        }
+      }
+    }
+  }
+' -F projectNumber="$PROJECT_NUMBER" -f owner="$OWNER"
+```
 
-## Epic structure: a phased implementation order
+## Recommended Labels
 
-Every epic should include a section ordering its sub-issues into
-dependency-aware phases, not just a flat list:
+| Label     | Usage                        |
+| --------- | ---------------------------- |
+| `epic`    | Parent issue with sub-issues |
+| `feature` | New feature                  |
+| `bug`     | Bug fix                      |
+| `chore`   | Maintenance, refactoring     |
+| `docs`    | Documentation                |
+
+## Rules
+
+1. **ALWAYS** add the issue to the project after creation
+2. **ALWAYS** use the GraphQL API to link sub-issues (not tasklist markdown)
+3. Epics must have the `epic` label
+4. Reference the parent epic in the sub-issue's body
+5. **NEVER an orphan ticket**: every issue MUST be attached to a parent epic
+   via `addSubIssue`. An epic groups the tickets of a single theme — it is the
+   project's thematic classification mechanism.
+
+## No orphan ticket (MANDATORY)
+
+A ticket without a parent is forbidden. Workflow to apply systematically
+before creating an issue:
+
+1. **Look for an existing epic** on the theme
+   (`gh issue list --label epic --state open --repo "$OWNER/$REPO"`).
+2. If an epic matches → create the sub-issue and link it via `addSubIssue`.
+3. If no epic matches → **create the parent epic first** (label `epic`, clear
+   theme), then the sub-issue under it.
+4. Only acceptable exception: explicit user request ("create a standalone
+   ticket on X"). Without an explicit instruction, refuse to create an orphan
+   ticket and propose the appropriate parent epic.
+
+**Why**: epics are the thematic grouping mechanism of the backlog — without a
+parent, a ticket is invisible in the project structure and gets lost.
+
+## Epic Structure
+
+Every epic MUST include a "Suggested implementation order" section:
+
+1. **Identify dependencies** between sub-issues
+2. **Group by phases** (Foundation → Optimization → Extension → Research)
+3. **Justify the order** with a brief rationale
+
+### Template
 
 ```markdown
 ## Suggested Implementation Order
 
 | Phase            | Issue | Depends on | Rationale                     |
-| ---------------- | ----- | ---------- | ------------------------------ |
-| 1 - Foundation   | #123  | -          | Prerequisite to measure       |
-| 2 - Optimization | #124  | #123       | Optimization based on metrics |
-| 2 - Optimization | #125  | #123       | Can run in parallel with #124 |
-| 3 - Extension    | #126  | -          | Independent extension         |
-| 4 - Research     | #127  | -          | Long-term, open-ended         |
+| ---------------- | ----- | ---------- | ----------------------------- |
+| 1 - Foundation   | A     | -          | Prerequisite to measure       |
+| 2 - Optimization | B     | A          | Optimization based on metrics |
+| 2 - Optimization | C     | A          | Can be parallelized with B    |
+| 3 - Extension    | D     | -          | Independent extension         |
+| 4 - Research     | E     | -          | Long-term research            |
 ```
 
-Standard phase vocabulary, adapt names to your domain:
+### Standard Phases
 
-| Phase | Description | Typical contents |
-|---|---|---|
-| Foundation | Prerequisites: instrumentation, metrics, infra | Logging, monitoring, missing tests |
-| Optimization | Data-driven improvement of something already working | Performance, cost reduction |
-| Extension | New capability building on the foundation | New feature surface |
-| Research | Long-term, exploratory | PoC, feasibility study |
+| Phase        | Description                   | Examples                     |
+| ------------ | ----------------------------- | ---------------------------- |
+| Foundation   | Prerequisites, metrics, infra | Logging, monitoring, tests   |
+| Optimization | Data-driven improvements      | Performance, token reduction |
+| Extension    | New features                  | New product areas            |
+| Research     | Long-term exploration         | PoC, feasibility studies     |
 
-To build this table: identify which sub-issues genuinely block others
-(shared data model, shared instrumentation) versus which are independent and
-can run in parallel, then group by phase and give each row a one-line reason
-— not just a phase label with no justification.
+### Phase labels — make the order queryable, not just readable (MANDATORY)
 
-## Recommended labels
+The "Suggested Implementation Order" table lives in the epic's markdown body —
+readable, but not queryable, and it silently drifts as sub-issues close or new
+ones are added (nothing forces the table to stay in sync). Close this gap with
+one label per phase, applied to every sub-issue in that phase:
+`phase-<N>-<slug>`, where `<N>` matches the table's Phase column and `<slug>`
+is a short, epic-specific theme (not a generic word — see the collision note
+below). Example for an epic migrating a storage layer:
 
-| Label | Usage |
-|---|---|
-| `epic` | Parent issue with sub-issues |
-| `feature` | New capability |
-| `bug` | Defect fix |
-| `chore` | Maintenance, refactoring, no user-facing behavior change |
-| `docs` | Documentation only |
+```
+phase-1-storage-foundation   "1 - Foundation: schema versioning"
+phase-2-storage-dual-write   "2 - Dual write: writers A, B"
+phase-3-storage-cutover      "3 - Cutover: readers, then removal of the old path"
+phase-4-storage-research     "4 - Research: gated on a third use case"
+```
 
-## Rules
+**Mechanics**:
 
-1. **Always** attach a newly created issue to the project board.
-2. **Always** use the parent/child GraphQL link for sub-issues, never a
-   tasklist checkbox in markdown.
-3. Epics carry the `epic` label.
-4. A sub-issue's body references its parent epic (`Part of #<epic_number>`).
-5. **No orphan tickets** — every issue attaches to a parent epic via
-   `addSubIssue` (see § No orphan ticket above).
-
-## Sources this was extracted from
-
-A production monorepo tracked on GitHub Issues + GitHub Projects v2, using
-native sub-issue links (not tasklist markdown) and a five-state status field
-(Todo/Blocked/In Progress/Done/Won't Fix). Concrete project/field/option IDs
-and the repo owner/name were intentionally left out — resolve your own via
-`gh project list` / `gh project field-list` as described above; the *shape*
-of each mutation and rule is what's meant to transfer.
+- **Create the label with `gh label create`**, with a description that is the
+  same human-readable phase text as the table row, **including the member
+  issue numbers**. The description is what turns the label into a durable
+  index: editing it when a sub-issue is added or closed keeps the phase
+  membership visible from `gh label list --search phase-` without opening the
+  epic at all.
+- **Apply the label to every sub-issue of that phase** at creation time
+  (`gh issue edit <N> --add-label "phase-2-storage-dual-write"`).
+- **Query the order directly**:
+  `gh issue list --label phase-2-storage-dual-write --state open` surfaces
+  exactly what is left in a phase. A milestone gives the full set; the phase
+  label gives the **ordered slice** of that set.
+- **Naming collision guard**: a bare `phase-N` label (no slug) is NOT
+  epic-scoped. As soon as a repository has run two epics, their phase
+  numbering collides on the same label. Always suffix with the epic-specific
+  slug.
+- **Update the description, not just the epic body**, when phase membership
+  changes. The label description is the source of truth a `gh label list`
+  query reads; the epic body table is the human-readable narrative. Keep both,
+  but the label is what makes "what's next" answerable without reading prose.
