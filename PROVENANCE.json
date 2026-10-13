@@ -4,7 +4,7 @@
     {
       "target": "rules/session-focus.md",
       "state": "generated",
-      "sourceRevision": "f8788b8e8",
+      "sourceRevision": "c5da6e4b8",
       "sourceDirty": false,
       "sourceHash": "7df0776745629d34ef5d329573c5df13c5a8530f81ad9587b6907d4d66de399c",
       "transformHash": "1abc424b65f8aeaa9330203f192261e2e2f95bd8ae2427078e8c30be5ac3b766",
@@ -13,7 +13,7 @@
     {
       "target": "skills/github-issues/SKILL.md",
       "state": "generated",
-      "sourceRevision": "f8788b8e8",
+      "sourceRevision": "c5da6e4b8",
       "sourceDirty": false,
       "sourceHash": "fa3e6ab80e4b5ba8e0ac92cc8d5f7bf0bf1a2c638a49ada3749d465b56c4cea0",
       "transformHash": "04c2f45195d9b9303023140a0f5ddc1f96d1bf8021c323290b6aa1d66372a7da",
