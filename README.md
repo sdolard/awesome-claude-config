@@ -305,11 +305,18 @@ transfer.
 This file covers the frontend/UI slice specifically. The rest of the
 methodology extracted from the same production codebase — process and
 engineering-discipline guidelines that aren't tied to any UI stack — lives
-in a `.claude/`-shaped tree below, ready to drop into another project's own
-`.claude/rules/`, `.claude/skills/`, `.claude/agents/`. The same integration
-note above applies: read, decide what genuinely fits your repo's current
-pain points, and re-tool each item into whichever Claude Code mechanism
-(Rule / Hook / Skill / Agent) actually matches the kind of constraint it is.
+in the tree below. The same integration note above applies: read, decide what
+genuinely fits your repo's current pain points, and re-tool each item into
+whichever mechanism (Rule / Hook / Skill / Agent) actually matches the kind of
+constraint it is.
+
+**Not only Claude Code.** The catalogue is being regenerated in an
+engine-neutral form, file by file. [`AGENTS.md`](AGENTS.md) is the entry point
+for an agent of any engine pointed at this repository, and
+[`engines/`](engines/README.md) says where each mechanism lives on Claude
+Code, Codex, opencode and Antigravity. [`rules/INDEX.md`](rules/INDEX.md)
+marks which rules are already neutral; the rest still use Claude Code
+vocabulary.
 
 ### `rules/`
 
